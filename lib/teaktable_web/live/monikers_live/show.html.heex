@@ -1,0 +1,203 @@
+<Layouts.app flash={@flash}>
+  <div class="container mx-auto columns-2 flex">
+    <div id="left-col" class="w-3/4">
+      <%= case @state do %>
+        <% :initialized -> %>
+          <div id="nickname-and-team-selection">
+            <h1>Welcome to Monikers!</h1>
+            <p>Please enter a nickname and click a team name to start playing.</p>
+            <p>
+              If you are re-connecting to an existing game, please click on the name of the player as whom you were previously connected.
+            </p>
+            <form phx-change="change_nickname">
+              <.input
+                label="Nickname:"
+                type="text"
+                id="nickname"
+                name="nickname"
+                value={@nickname}
+                required
+              />
+            </form>
+
+            <%= if join_valid?(@nickname, @chosen_team) do %>
+              <.button phx-click="initialize">Join Game</.button>
+            <% end %>
+          </div>
+        <% :drafting -> %>
+          <div id="drafting">
+            <h1>Hello, {@nickname}!</h1>
+            <p>
+              You are on team {@teams[@chosen_team].name}. Feel free to click on the team name in the sidebar to rename it. Let chaos reign.
+            </p>
+            
+<!--Pull cards from the deck and display them. Allow user to select cards to put them in the to-draft pile, or throw them back into the deck.
+                Once the user has selected enough cards, allow them to confirm their selection and Ready Up for the game.
+                Display the list of all players and their teams, as well as their readiness status.
+                In this mode, users can change the name of the team that they're on, their nickname (as long as it's not already taken), leave the game, or change their team. -->
+
+            <%= if !@cards_drawn do %>
+              <.button class="btn btn-primary" phx-click="draw_cards">Draw Cards</.button>
+            <% else %>
+              <.button class="btn btn-primary" phx-click="return_and_draw">
+                Those Cards Sucked, Draw New Ones
+              </.button>
+            <% end %>
+            <%= if @readiness do %>
+              <.button class="btn btn-primary" phx-click="unready">
+                Oh God Oh Fuck I Changed My Mind
+              </.button>
+            <% else %>
+              <.button class="btn btn-primary" phx-click="ready">
+                Ready! (Note: Will Return All Unpicked Cards To Deck)
+              </.button>
+            <% end %>
+
+            <div id="available-cards">
+              <h2>Hand:</h2>
+              <div
+                id="hand"
+                class="grid grid-flow-row lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 gap-10"
+              >
+                <%= for card <- @available_cards do %>
+                  <div class="card bg-neutral text-neutral-content card-md">
+                    <div class="card-body items-center text-center">
+                      <h3 class="card-title">{card.title}</h3>
+                      <p class="mb-5">{card.description}</p>
+                      <div class="card-actions w-full flex justify-between">
+                        <div
+                          style="position: relative; top: 32px; left: -18px; width: 0%;"
+                          class="float-left rounded-full badge badge-secondary"
+                        >
+                          {card.score}
+                        </div>
+                        <button
+                          class="btn btn-accent"
+                          phx-click="pick_card"
+                          phx-value-card={card.id}
+                        >
+                          Pick me!
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+
+            <div id="picked-cards">
+              <h2>Drafted:</h2>
+              <div
+                id="picked"
+                class="grid grid-flow-row lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 gap-10"
+              >
+                <%= for card <- @picked_cards do %>
+                  <div class="card bg-neutral text-neutral-content card-md">
+                    <div class="card-body items-center text-center">
+                      <h3 class="card-title">{card.title}</h3>
+                      <p class="mb-5">{card.description}</p>
+                      <div class="card-actions w-full flex justify-between">
+                        <div
+                          style="position: relative; top: 32px; left: -18px; width: 0%;"
+                          class="float-left rounded-full badge badge-secondary"
+                        >
+                          {card.score}
+                        </div>
+                        <button
+                          class="btn btn-secondary"
+                          phx-click="unpick_card"
+                          phx-value-card={card.id}
+                        >
+                          Unpick me!
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        <% :playing -> %>
+          <div id="playing">
+            <h1>Game in Progress</h1>
+            <p>Game is currently in progress. Beep boop.</p>
+            <p>You are on team {@teams[@chosen_team].name}</p>
+          </div>
+      <% end %>
+    </div>
+    <div id="right-col" class="max-w-md pl-10">
+      <h2 class="text-lg font-bold pb-5">TEAMS:</h2>
+      <%= case @state do %>
+        <% :initialized -> %>
+          <!-- in the initialized state, anchor disconnected players so you can just jump in as that player -->
+          <div id="current-players">
+            <ul>
+              <%= for {key, team} <- @teams do %>
+                <h3
+                  class="text-lg font-bold py-3 cursor-pointer hover:bg-base-200 underline"
+                  phx-click="select_team"
+                  phx-value-team={key}
+                >
+                  {team.name}
+                </h3>
+                <%= for player <- team.players do %>
+                  <%= if player.connection do %>
+                    <li>{player.name}</li>
+                  <% else %>
+                    <li
+                      class="cursor-pointer hover:bg-base-200 underline"
+                      phx-click="reconnect"
+                      phx-value-nickname={player.name}
+                    >
+                      {player.name}
+                    </li>
+                  <% end %>
+                <% end %>
+              <% end %>
+            </ul>
+          </div>
+        <% :drafting -> %>
+          <!-- in drafting, show player readiness and provide ability to rename teams -->
+          <div id="current-players">
+            <ul>
+              <%= for {key, team} <- @teams do %>
+                <%= if @team_open_for_renaming == key do %>
+                  <.input
+                    type="text"
+                    id="team_name"
+                    name="team_name"
+                    value={team.name}
+                    phx-blur="rename_team"
+                    phx-value-team={key}
+                    phx-keydown="rename_team"
+                    phx-key="Enter"
+                    autofocus
+                  />
+                <% else %>
+                  <h3
+                    class="text-lg font-bold py-3"
+                    phx-click="open_team_for_renaming"
+                    phx-value-team={key}
+                  >
+                    {team.name}
+                  </h3>
+                <% end %>
+                <%= for player <- team.players do %>
+                  <li>{player.name}</li>
+                  {if !player.connection do
+                    "(disconnected)"
+                  end}
+                  {if player.ready do
+                    " - READY"
+                  end}
+                <% end %>
+              <% end %>
+            </ul>
+          </div>
+        <% :playing -> %>
+          <!-- in playing, show current active player and team scores -->
+            beep boop
+      <% end %>
+    </div>
+  </div>
+</Layouts.app>
