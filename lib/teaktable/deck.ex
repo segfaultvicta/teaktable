@@ -29,11 +29,13 @@ defmodule Teaktable.Deck do
   def cahwhite do
     from(c in Card, where: c.type == :cahwhite)
     |> Repo.all()
+    |> Enum.map(& &1.description)
   end
 
   def cahblack do
     from(c in Card, where: c.type == :cahblack)
     |> Repo.all()
+    |> Enum.map(& &1.description)
   end
 
   @doc """

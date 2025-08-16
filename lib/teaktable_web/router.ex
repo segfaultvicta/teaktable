@@ -25,9 +25,13 @@ defmodule TeaktableWeb.Router do
   end
 
   # Other scopes may use custom stacks.
-  # scope "/api", TeaktableWeb do
-  #   pipe_through :api
-  # end
+  scope "/api", TeaktableWeb do
+    pipe_through :api
+    get "/monikers/obliterate", GameController, :obliterate_monikers_game
+    get "/monikers/*cfg", GameController, :monikers_adjust
+    get "/cah/obliterate", GameController, :obliterate_cah_game
+    get "/cah/*cfg", GameController, :cah_adjust
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:teaktable, :dev_routes) do

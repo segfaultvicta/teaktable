@@ -15,6 +15,7 @@ defmodule Teaktable.Application do
       # Start a worker by calling: Teaktable.Worker.start_link(arg)
       # {Teaktable.Worker, arg},
       Teaktable.Games.Monikers,
+      Teaktable.Games.CAH,
       # Start to serve requests, typically the last entry
       TeaktableWeb.Endpoint
     ]

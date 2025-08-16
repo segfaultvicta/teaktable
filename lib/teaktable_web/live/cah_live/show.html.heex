@@ -1,0 +1,171 @@
+<Layouts.app flash={@flash}>
+  <div class="container mx-auto columns-2 flex">
+    <div id="left-col" class="w-3/4 space-y-4">
+      <%= if @current_active == @name do %>
+        <h1>YOU, {String.upcase(@name)}, ARE THE BEAN BESTOWER</h1>
+        <%= if @available_black_cards == nil do %>
+          <%= if !@waiting_for_submissions do %>
+            <.button class="btn" phx-click="draw_black_cards">draw black cards</.button>
+          <% end %>
+        <% else %>
+          <div
+            id="hand"
+            class="grid grid-flow-row lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 gap-10"
+          >
+            <%= for card <- @available_black_cards do %>
+              <.link
+                phx-click="submit_black_card"
+                phx-keydown="submit_black_card"
+                phx-key="Enter"
+                phx-value-card={card}
+              >
+                <div class={~w(card bg-neutral text-neutral-content card-md)}>
+                  <div class="card-body items-center text-center">
+                    <p class="mb-5">{card}</p>
+                  </div>
+                </div>
+              </.link>
+            <% end %>
+          </div>
+        <% end %>
+
+        <%= if @submitted_white_cards != [] do %>
+          <div class="flex flex-col space-y-4">
+            <%= for %{cards: cards, from: from} <- @submitted_white_cards do %>
+              <.link
+                phx-click="choose_submitted_white_cards"
+                phx-keydown="choose_submitted_white_cards"
+                phx-key="Enter"
+                phx-value-from={from}
+              >
+                <div class="flex flex-row space-x-3">
+                  <%= for card <- cards do %>
+                    <div class="card bg-neutral text-neutral-content card-md">
+                      <div class="card-body items-center text-center">
+                        <p class="mb-5">{card}</p>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              </.link>
+            <% end %>
+          </div>
+        <% end %>
+      <% else %>
+        <div
+          id="inactive-player"
+          class="flex flex-col justify-center justify-items-center space-y-4"
+        >
+          <%= if @current_active == nil do %>
+            <.button phx-click="claim" class="btn">START GAME</.button>
+          <% end %>
+
+          <%= if @selected_black_card != nil do %>
+            <div id="show-black-card">
+              <p>A BEAN HAS BEEN BESTOWED:</p>
+              <div class="card bg-neutral text-neutral-content card-md">
+                <div class="card-body items-center text-center">
+                  <p class="mb-5">{@selected_black_card}</p>
+                </div>
+              </div>
+            </div>
+
+            <.button class="btn" phx-click="submit_white_cards">play white cards</.button>
+          <% end %>
+
+          <div id="available-cards">
+            <div
+              id="hand"
+              class="grid grid-flow-row lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 gap-10"
+            >
+              <%= for card <- @hand do %>
+                <.link
+                  phx-click="toggle_card"
+                  phx-keydown="toggle_card"
+                  phx-key="Enter"
+                  phx-value-card={card}
+                >
+                  <div class={
+                    ~w(card bg-neutral text-neutral-content card-lg) ++
+                      if card in @selected_white_cards do
+                        ["bg-red-500"]
+                      else
+                        []
+                      end
+                  }>
+                    <div class="card-body items-center text-center">
+                      <p class="mb-5">{card}</p>
+                      <div class="card-actions w-full flex justify-center">
+                        <.button
+                          class="btn font-thin text-3xl"
+                          style="font-family: 'Brush Script MT'; cursive"
+                          phx-click="discard"
+                          phx-value-card={card}
+                        >
+                          yeet!
+                        </.button>
+                      </div>
+                    </div>
+                  </div>
+                </.link>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+    <div id="right-col" class="max-w-md grow pl-10">
+      <h2 class="text-lg text-center font-bold">PLAYERS:</h2>
+      <div id="current-players" class="text-center">
+        <ul>
+          <%= for player <- @players do %>
+            <%= if @name == player.name and @name_open_for_edit do %>
+              <.input
+                type="text"
+                id="name"
+                name="name"
+                value={player.name}
+                phx-blur="change_nickname"
+                phx-keydown="change_nickname"
+                phx-key="Enter"
+                autofocus
+              />
+            <% else %>
+              <li class={
+                if @current_active == player.name do
+                  ["font-bold"]
+                else
+                  []
+                end ++
+                  if @name == player.name do
+                    ["text-blue-400", "underline"]
+                  else
+                    []
+                  end
+              }>
+                <%= if @name == player.name do %>
+                  <h3
+                    tabindex="0"
+                    phx-keydown="open_name_for_edit"
+                    phx-key="Enter"
+                    phx-click="open_name_for_edit"
+                  >
+                    {player.name} ({player.score})
+                  </h3>
+                <% else %>
+                  {player.name} ({player.score})
+                <% end %>
+              </li>
+            <% end %>
+          <% end %>
+
+          <div class="text-xs italic font-thin pt-20">
+            Click on your own name
+            <span class="text-blue-400 underline">(highlighted, underlined)</span>
+            in order to change it.
+          </div>
+        </ul>
+      </div>
+    </div>
+  </div>
+</Layouts.app>

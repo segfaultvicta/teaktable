@@ -36,22 +36,19 @@ defmodule TeaktableWeb.Layouts do
   def app(assigns) do
     ~H"""
     <header class="navbar px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
-        <a href="/" class="flex-1 flex w-fit items-center gap-2">
-          <span class="text-sm font-semibold">Teaktable v{Application.spec(:phoenix, :vsn)}</span>
+      <div class="flex w-full justify-between">
+        <span class="text-md font-semibold">Super Padfriends Gametable</span>
+        <a href="/monikers" class="">
+          <span class="text-md font-semibold">Monikers</span>
         </a>
-      </div>
-      <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center">
-          <li>
-            <.theme_toggle />
-          </li>
-        </ul>
+        <a href="/cah" class="">
+          <span class="text-md font-semibold">{Teaktable.Games.CAH.name()}</span>
+        </a>
       </div>
     </header>
 
-    <main class="px-4 py-10 sm:px-6 lg:px-8">
-      <div class="mx-auto max-w-9/10 space-y-4">
+    <main class="px-2 sm:px-4 lg:px-6">
+      <div class="mx-auto max-w-full space-y-2">
         {render_slot(@inner_block)}
       </div>
     </main>

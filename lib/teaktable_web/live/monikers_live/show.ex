@@ -15,6 +15,9 @@ defmodule TeaktableWeb.MonikersLive.Show do
      |> assign(:picked_cards, [])
      |> assign(:current_player, nil)
      |> assign(:current_card, nil)
+     |> assign(:cards_remaining, nil)
+     |> assign(:cards_in_discard, nil)
+     |> assign(:timer_display, nil)
      |> assign(:state, :initialized)
      |> assign(:readiness, false)
      |> assign(:cards_drawn, false)
@@ -30,15 +33,14 @@ defmodule TeaktableWeb.MonikersLive.Show do
   end
 
   @impl true
-  def handle_event("pick_team", %{"team" => team}, socket) do
-    chosen_team = String.to_atom(team)
-    {:noreply, assign(socket, :chosen_team, chosen_team)}
-  end
-
-  @impl true
   def handle_event("select_team", %{"team" => team}, socket) do
     team = String.to_atom(team)
-    {:noreply, assign(socket, :chosen_team, team)}
+
+    if team == socket.assigns.chosen_team do
+      {:noreply, assign(socket, :chosen_team, nil)}
+    else
+      {:noreply, assign(socket, :chosen_team, team)}
+    end
   end
 
   def handle_event(
@@ -46,18 +48,21 @@ defmodule TeaktableWeb.MonikersLive.Show do
         %{"team" => team, "value" => new_name, "key" => "Enter"},
         socket
       ) do
-    IO.puts("in key-aware rename_team handle_event")
     internal_rename(team, new_name, socket)
   end
 
   def handle_event("rename_team", %{"team" => team, "value" => new_name}, socket) do
-    IO.puts("in non-key-aware rename_team handle_event")
     internal_rename(team, new_name, socket)
   end
 
   def handle_event("open_team_for_renaming", %{"team" => team}, socket) do
     team = String.to_atom(team)
-    {:noreply, assign(socket, :team_open_for_renaming, team)}
+
+    if socket.assigns.chosen_team == team do
+      {:noreply, assign(socket, :team_open_for_renaming, team)}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -75,6 +80,7 @@ defmodule TeaktableWeb.MonikersLive.Show do
             :initial -> :drafting
             :playing -> :playing
             :waiting_on_pickup -> :playing
+            :complete -> :complete
             _ -> :initialized
           end
 
@@ -94,13 +100,30 @@ defmodule TeaktableWeb.MonikersLive.Show do
          |> assign(:state, liveview_state)}
 
       {:error, message} ->
-        IO.puts("Error adding player: #{message}")
-
         {:noreply,
          socket
          |> put_flash(:error, message)
          |> assign(:state, :initialized)
          |> assign(:nickname, "")}
+    end
+  end
+
+  def handle_event("join_as_spectator", _params, socket) do
+    nickname = socket.assigns.nickname
+    chosen_team = :spectators
+
+    case Monikers.add_player(nickname, chosen_team) do
+      :ok ->
+        {:noreply, socket |> assign(:state, :observing)}
+
+      {:error, message} ->
+        {:noreply, socket |> assign(:state, :initialized) |> put_flash(:error, message)}
+
+      _ ->
+        {:noreply,
+         socket
+         |> assign(:state, :initialized)
+         |> put_flash(:error, "Error joining game as audience.")}
     end
   end
 
@@ -113,8 +136,6 @@ defmodule TeaktableWeb.MonikersLive.Show do
         Enum.any?(data.players, fn p -> p.name == nickname end)
       end)
       |> elem(0)
-
-    IO.puts("Reconnecting player: #{nickname} to team: #{previous_team}")
 
     case Monikers.add_player(nickname, previous_team) do
       {:ok, game} ->
@@ -132,11 +153,10 @@ defmodule TeaktableWeb.MonikersLive.Show do
          |> assign(:chosen_team, previous_team)
          |> assign(:teams, game.teams)
          |> assign(:state, liveview_state)
+         |> assign(:current_player, game.current_player)
          |> put_flash(:info, "Reconnected!")}
 
       {:error, message} ->
-        IO.puts("Error reconnecting player: #{message}")
-
         {:noreply,
          socket
          |> put_flash(:error, message)
@@ -144,8 +164,6 @@ defmodule TeaktableWeb.MonikersLive.Show do
          |> assign(:nickname, "")}
 
       _ ->
-        IO.puts("Unexpected result when trying to reconnect player: #{nickname}")
-
         {:noreply,
          socket
          |> put_flash(:error, "Something truly cursed happened reconnecting player #{nickname}.")
@@ -223,34 +241,47 @@ defmodule TeaktableWeb.MonikersLive.Show do
     {:noreply, socket |> assign(:readiness, false) |> assign(:cards_drawn, false)}
   end
 
-  def handle_info(%{event: "teams_change", payload: %{teams: teams}}, socket) do
-    IO.puts("Received teams_change in MonikersLive.Show")
-    {:noreply, assign(socket, :teams, teams)}
+  def handle_event("first_pickup", _params, socket) do
+    {current_card, cards_remaining, cards_in_discard} = Monikers.draw_from_pile()
+
+    Monikers.begin_timer()
+
+    :timer.send_after(1000, :tick)
+
+    {:noreply,
+     socket
+     |> assign(:current_card, current_card)
+     |> assign(:cards_remaining, cards_remaining)
+     |> assign(:cards_in_discard, cards_in_discard)}
   end
 
-  def handle_info(%{event: "ready_change", payload: %{teams: teams}}, socket) do
-    IO.puts("Received ready_change in MonikersLive.Show")
-    IO.inspect(teams)
-    {:noreply, assign(socket, :teams, teams)}
+  def handle_event("skip", %{"card" => card_id}, socket) do
+    Monikers.discard(card_id)
+
+    {current_card, cards_remaining, cards_in_discard} = Monikers.draw_from_pile()
+
+    {:noreply,
+     socket
+     |> assign(:current_card, current_card)
+     |> assign(:cards_remaining, cards_remaining)
+     |> assign(:cards_in_discard, cards_in_discard)}
   end
 
-  def handle_info(%{event: "enter_play", payload: _payload}, socket) do
-    IO.puts("Received enter_play in MonikersLive.Show")
-    {:noreply, assign(socket, :state, :playing)}
-  end
+  def handle_event("award", %{"card" => card_id}, socket) do
+    Monikers.award(socket.assigns.chosen_team, card_id)
 
-  def handle_info(%{event: "advance_turn", payload: current_player}, socket) do
-    IO.puts("Received advance_turn in MonikersLive.Show")
+    {current_card, cards_remaining, cards_in_discard} = Monikers.draw_from_pile()
 
-    # this will have to check if *we're* the current player; if we're not, we don't have to do anything
-    {:noreply, assign(socket, :current_player, current_player)}
-  end
-
-  @impl true
-  def handle_info(payload, socket) do
-    IO.puts("Received payload in MonikersLive.Show: #{inspect(payload)}")
-
-    {:noreply, socket}
+    if current_card == nil do
+      Monikers.handle_EOR()
+    else
+      # round continues
+      {:noreply,
+       socket
+       |> assign(:current_card, current_card)
+       |> assign(:cards_remaining, cards_remaining)
+       |> assign(:cards_in_discard, cards_in_discard)}
+    end
   end
 
   @impl true
@@ -259,10 +290,85 @@ defmodule TeaktableWeb.MonikersLive.Show do
     {:noreply, socket}
   end
 
-  @impl true
-  def terminate(reason, socket) do
-    IO.puts("MonikersLive.Show terminated with reason: #{inspect(reason)}")
+  def handle_info(:tick, socket) do
+    case Monikers.tick() do
+      :ok ->
+        :timer.send_after(1000, :tick)
 
+      :zero ->
+        Monikers.discard(socket.assigns.current_card.id)
+        :timer.send_after(500, :tick)
+
+      _ ->
+        nil
+    end
+
+    {:noreply, socket}
+  end
+
+  def handle_info(%{event: "timer_update", payload: %{timer: new_timer}}, socket) do
+    {:noreply, assign(socket, :timer_display, new_timer)}
+  end
+
+  def handle_info(%{event: "teams_change", payload: %{teams: teams}}, socket) do
+    {:noreply, assign(socket, :teams, teams)}
+  end
+
+  def handle_info(%{event: "score_update", payload: %{teams: teams}}, socket) do
+    {:noreply, assign(socket, :teams, teams)}
+  end
+
+  def handle_info(%{event: "ready_change", payload: %{teams: teams}}, socket) do
+    {:noreply, assign(socket, :teams, teams)}
+  end
+
+  def handle_info(%{event: "enter_play", payload: _payload}, socket) do
+    {:noreply, assign(socket, :state, :playing)}
+  end
+
+  def handle_info(%{event: "advance_turn", payload: %{current_player: current_player}}, socket) do
+    # this will have to check if *we're* the current player; if we're not, we don't have to do anything
+    {:noreply, assign(socket, :current_player, current_player)}
+  end
+
+  def handle_info(%{event: "round_end", payload: %{new_round: new_round}}, socket) do
+    {:noreply,
+     socket |> assign(:timer_display, nil) |> put_flash(:info, "ENTERING ROUND #{new_round}!")}
+  end
+
+  def handle_info(%{event: "game_end", payload: _payload}, socket) do
+    {:noreply,
+     socket
+     |> put_flash(:info, "GAME OVER! CELEBRATE THE VICTOR OR FACE TEAKWOOD'S WRATH")
+     |> assign(:timer_display, nil)
+     |> assign(:state, :complete)}
+  end
+
+  def handle_info(%{event: "restart", payload: _payload}, socket) do
+    {:noreply,
+     socket
+     |> assign(:available_cards, [])
+     |> assign(:picked_cards, [])
+     |> assign(:current_player, nil)
+     |> assign(:current_card, nil)
+     |> assign(:state, :initialized)
+     |> assign(:readiness, false)
+     |> assign(:cards_drawn, false)
+     |> assign(:teams, Monikers.get().teams)
+     |> assign(:chosen_team, nil)
+     |> assign(:team_open_for_renaming, nil)
+     |> put_flash(:info, "Game was restarted via sorcery.")}
+  end
+
+  @impl true
+  def handle_info(payload, socket) do
+    IO.puts("Unhandled info payload in MonikersLive.Show: #{inspect(payload)}")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def terminate(_reason, socket) do
     # If we're terminating a session during the drafting phase, return all the currently-held cards (both selected and not) to the deck
     if socket.assigns.state == :drafting do
       Monikers.return(socket.assigns.available_cards ++ socket.assigns.picked_cards)
@@ -301,10 +407,15 @@ defmodule TeaktableWeb.MonikersLive.Show do
   end
 
   defp join_valid?(nickname, chosen_team) do
-    if nickname != "" and chosen_team do
-      true
+    if nickname != "" and (chosen_team == :a or chosen_team == :b) and
+         Monikers.game_phase() not in [:playing, :waiting_for_pickup] do
+      :as_player
     else
-      false
+      if nickname != "" do
+        :as_spectator
+      else
+        false
+      end
     end
   end
 end

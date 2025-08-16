@@ -3,9 +3,15 @@
     <div id="left-col" class="w-3/4">
       <%= case @state do %>
         <% :initialized -> %>
-          <div id="nickname-and-team-selection">
+          <div id="nickname-and-team-selection" class="space-y-4">
             <h1>Welcome to Monikers!</h1>
-            <p>Please enter a nickname and click a team name to start playing.</p>
+            <%= if Monikers.game_phase == :initial do %>
+              <p>Please enter a nickname and click a team name to start playing.</p>
+            <% else %>
+              <p>
+                The game is currently in progress, but you can still join as an audience member.
+              </p>
+            <% end %>
             <p>
               If you are re-connecting to an existing game, please click on the name of the player as whom you were previously connected.
             </p>
@@ -20,41 +26,41 @@
               />
             </form>
 
-            <%= if join_valid?(@nickname, @chosen_team) do %>
-              <.button phx-click="initialize">Join Game</.button>
+            <%= case join_valid?(@nickname, @chosen_team) do %>
+              <% :as_player -> %>
+                <.button phx-click="initialize">Join Game</.button>
+              <% :as_spectator -> %>
+                <.button phx-click="join_as_spectator">Join Audience</.button>
+              <% _ -> %>
             <% end %>
           </div>
         <% :drafting -> %>
-          <div id="drafting">
+          <div id="drafting" class="space-y-4">
             <h1>Hello, {@nickname}!</h1>
             <p>
               You are on team {@teams[@chosen_team].name}. Feel free to click on the team name in the sidebar to rename it. Let chaos reign.
             </p>
-            
-<!--Pull cards from the deck and display them. Allow user to select cards to put them in the to-draft pile, or throw them back into the deck.
-                Once the user has selected enough cards, allow them to confirm their selection and Ready Up for the game.
-                Display the list of all players and their teams, as well as their readiness status.
-                In this mode, users can change the name of the team that they're on, their nickname (as long as it's not already taken), leave the game, or change their team. -->
 
-            <%= if !@cards_drawn do %>
-              <.button class="btn btn-primary" phx-click="draw_cards">Draw Cards</.button>
-            <% else %>
-              <.button class="btn btn-primary" phx-click="return_and_draw">
-                Those Cards Sucked, Draw New Ones
-              </.button>
-            <% end %>
-            <%= if @readiness do %>
-              <.button class="btn btn-primary" phx-click="unready">
-                Oh God Oh Fuck I Changed My Mind
-              </.button>
-            <% else %>
-              <.button class="btn btn-primary" phx-click="ready">
-                Ready! (Note: Will Return All Unpicked Cards To Deck)
-              </.button>
-            <% end %>
+            <div class="space-x-10">
+              <%= if !@cards_drawn do %>
+                <.button class="btn btn-primary" phx-click="draw_cards">Draw Cards</.button>
+              <% else %>
+                <.button class="btn btn-primary" phx-click="return_and_draw">
+                  Those Cards Sucked, Draw New Ones
+                </.button>
+              <% end %>
+              <%= if @readiness do %>
+                <.button class="btn btn-primary" phx-click="unready">
+                  Oh God Oh Fuck I Changed My Mind
+                </.button>
+              <% else %>
+                <.button class="btn btn-primary" phx-click="ready">
+                  Ready! (Note: Will Return All Unpicked Cards To Deck)
+                </.button>
+              <% end %>
+            </div>
 
             <div id="available-cards">
-              <h2>Hand:</h2>
               <div
                 id="hand"
                 class="grid grid-flow-row lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 gap-10"
@@ -85,72 +91,162 @@
               </div>
             </div>
 
-            <div id="picked-cards">
-              <h2>Drafted:</h2>
-              <div
-                id="picked"
-                class="grid grid-flow-row lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 gap-10"
-              >
-                <%= for card <- @picked_cards do %>
+            <%= if @picked_cards != nil and Enum.count(@picked_cards) > 0 do %>
+              <div id="picked-cards" class="mt-10">
+                <h2>Drafted:</h2>
+                <div
+                  id="picked"
+                  class="grid grid-flow-row lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 gap-10"
+                >
+                  <%= for card <- @picked_cards do %>
+                    <div class="card bg-neutral text-neutral-content card-md">
+                      <div class="card-body items-center text-center">
+                        <h3 class="card-title">{card.title}</h3>
+                        <p class="mb-5">{card.description}</p>
+                        <div class="card-actions w-full flex justify-between">
+                          <div
+                            style="position: relative; top: 32px; left: -18px; width: 0%;"
+                            class="float-left rounded-full badge badge-secondary"
+                          >
+                            {card.score}
+                          </div>
+                          <button
+                            class="btn btn-secondary"
+                            phx-click="unpick_card"
+                            phx-value-card={card.id}
+                          >
+                            Unpick me!
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        <% :playing -> %>
+          <div id="playing" class="space-y-4">
+            <%= if @current_player != nil and @current_player.name == @nickname do %>
+              <p>You are the current player!</p>
+              <%= if Monikers.game_phase() == :waiting_on_pickup do %>
+                <div>
+                  <.button class="btn btn-primary" phx-click="first_pickup">
+                    Pick Up First Card And Begin Timer
+                  </.button>
+                </div>
+              <% else %>
+                <%= if Monikers.game_phase() == :countdown do %>
+                  <%= if @cards_remaining != nil && @cards_in_discard != nil do %>
+                    <div>
+                      {@cards_remaining} left in draw pile, {@cards_in_discard} left in discard
+                    </div>
+                  <% end %>
                   <div class="card bg-neutral text-neutral-content card-md">
                     <div class="card-body items-center text-center">
-                      <h3 class="card-title">{card.title}</h3>
-                      <p class="mb-5">{card.description}</p>
+                      <h3 class="card-title">{@current_card.title}</h3>
+                      <p class="mb-5">{@current_card.description}</p>
                       <div class="card-actions w-full flex justify-between">
                         <div
                           style="position: relative; top: 32px; left: -18px; width: 0%;"
                           class="float-left rounded-full badge badge-secondary"
                         >
-                          {card.score}
+                          {@current_card.score}
                         </div>
-                        <button
-                          class="btn btn-secondary"
-                          phx-click="unpick_card"
-                          phx-value-card={card.id}
+                        <.button
+                          class="btn btn-accent"
+                          phx-click="skip"
+                          phx-value-card={@current_card.id}
                         >
-                          Unpick me!
-                        </button>
+                          SKIP
+                        </.button>
+                        <.button
+                          class="btn btn-accent"
+                          phx-click="award"
+                          phx-value-card={@current_card.id}
+                        >
+                          AWARD
+                        </.button>
                       </div>
                     </div>
                   </div>
+                <% else %>
+                  <p>something fucking fucky is fucking fucked here</p>
                 <% end %>
-              </div>
-            </div>
+              <% end %>
+            <% else %>
+              OwO
+            <% end %>
           </div>
-        <% :playing -> %>
-          <div id="playing">
-            <h1>Game in Progress</h1>
-            <p>Game is currently in progress. Beep boop.</p>
-            <p>You are on team {@teams[@chosen_team].name}</p>
+        <% :observing -> %>
+          <div id="observing" class="space-y-4">
+            <h1>
+              Greetings, {@nickname}! You are in the audience! This is not properly implemented yet.
+            </h1>
+          </div>
+        <% :complete -> %>
+          <div id="complete" class="space-y-4">
+            The game is over!
+
+            Final Scores:
+            <%= for {key, team} <- Enum.sort(@teams, &(&1.score > &2.score)) do %>
+              {team.name} : {team.score}
+            <% end %>
           </div>
       <% end %>
     </div>
-    <div id="right-col" class="max-w-md pl-10">
-      <h2 class="text-lg font-bold pb-5">TEAMS:</h2>
+    <div id="right-col" class="max-w-md grow pl-10">
+      <div id="timer-countdown" class="font-mono text-6xl text-center" style="height:60px;">
+        <%= if @timer_display != nil do %>
+          {@timer_display}
+        <% end %>
+      </div>
+      <h2 class="text-lg text-center font-bold">TEAMS:</h2>
       <%= case @state do %>
         <% :initialized -> %>
           <!-- in the initialized state, anchor disconnected players so you can just jump in as that player -->
-          <div id="current-players">
+          <div id="current-players" class="text-center">
             <ul>
-              <%= for {key, team} <- @teams do %>
-                <h3
-                  class="text-lg font-bold py-3 cursor-pointer hover:bg-base-200 underline"
-                  phx-click="select_team"
-                  phx-value-team={key}
-                >
-                  {team.name}
-                </h3>
-                <%= for player <- team.players do %>
-                  <%= if player.connection do %>
-                    <li>{player.name}</li>
-                  <% else %>
-                    <li
-                      class="cursor-pointer hover:bg-base-200 underline"
-                      phx-click="reconnect"
-                      phx-value-nickname={player.name}
+              <%= for {key, team} <- Enum.sort(@teams) do %>
+                <%= if key != :spectators do %>
+                  <li>
+                    <.button
+                      class={
+                        [
+                          "text-lg",
+                          "font-bold",
+                          "py-3",
+                          "cursor-pointer",
+                          "hover:bg-base-200",
+                          "text-center",
+                          "underline"
+                        ] ++
+                          if key == @chosen_team do
+                            ["bg-blue-200", "text-black", "hover:text-white", "rounded-4xl"]
+                          else
+                            []
+                          end
+                      }
+                      phx-click="select_team"
+                      phx-value-team={key}
                     >
-                      {player.name}
-                    </li>
+                      {team.name}
+                    </.button>
+                  </li>
+                  <%= for player <- Enum.sort(team.players) do %>
+                    <%= if player.connection do %>
+                      <li>{player.name}</li>
+                    <% else %>
+                      <li
+                        class="cursor-pointer hover:bg-base-200 underline"
+                        phx-click="reconnect"
+                        phx-value-nickname={player.name}
+                      >
+                        <button class="hover:bg-base-200 underline">
+                          {player.name}
+                        </button>
+                      </li>
+                    <% end %>
                   <% end %>
                 <% end %>
               <% end %>
@@ -158,45 +254,85 @@
           </div>
         <% :drafting -> %>
           <!-- in drafting, show player readiness and provide ability to rename teams -->
-          <div id="current-players">
+          <div id="current-players" class="text-center">
             <ul>
-              <%= for {key, team} <- @teams do %>
-                <%= if @team_open_for_renaming == key do %>
-                  <.input
-                    type="text"
-                    id="team_name"
-                    name="team_name"
-                    value={team.name}
-                    phx-blur="rename_team"
-                    phx-value-team={key}
-                    phx-keydown="rename_team"
-                    phx-key="Enter"
-                    autofocus
-                  />
-                <% else %>
-                  <h3
-                    class="text-lg font-bold py-3"
-                    phx-click="open_team_for_renaming"
-                    phx-value-team={key}
-                  >
-                    {team.name}
-                  </h3>
-                <% end %>
-                <%= for player <- team.players do %>
-                  <li>{player.name}</li>
-                  {if !player.connection do
-                    "(disconnected)"
-                  end}
-                  {if player.ready do
-                    " - READY"
-                  end}
+              <%= for {key, team} <- Enum.sort(@teams) do %>
+                <%= if key != :spectators do %>
+                  <%= if @team_open_for_renaming == key do %>
+                    <.input
+                      type="text"
+                      id="team_name"
+                      name="team_name"
+                      value={team.name}
+                      phx-blur="rename_team"
+                      phx-value-team={key}
+                      phx-keydown="rename_team"
+                      phx-key="Enter"
+                      autofocus
+                    />
+                  <% else %>
+                    <h3
+                      tabindex="0"
+                      class="text-lg font-bold py-3"
+                      phx-keydown="open_team_for_renaming"
+                      phx-key="Enter"
+                      phx-click="open_team_for_renaming"
+                      phx-value-team={key}
+                    >
+                      {team.name}
+                    </h3>
+                  <% end %>
+                  <%= for player <- Enum.sort(team.players) do %>
+                    <li class={
+                      if !player.connection do
+                        ["italic", "line-through", "text-neutral-400"]
+                      else
+                        []
+                      end ++
+                        if player.ready do
+                          ["font-bold"]
+                        else
+                          []
+                        end
+                    }>
+                      {player.name}
+                    </li>
+                  <% end %>
                 <% end %>
               <% end %>
             </ul>
           </div>
-        <% :playing -> %>
-          <!-- in playing, show current active player and team scores -->
-            beep boop
+        <% n when n in [:playing, :observing] -> %>
+          <div id="current-players" class="text-center">
+            <ul>
+              <%= for {key, team} <- Enum.sort(@teams) do %>
+                <h3 class="text-lg font-bold py-3">
+                  {team.name}
+                  <%= if key != :spectators do %>
+                    ({team.score})
+                  <% end %>
+                </h3>
+                <%= for player <- Enum.sort(team.players) do %>
+                  <li class={
+                    if !player.connection do
+                      ["italic", "line-through", "text-neutral-400"]
+                    else
+                      []
+                    end ++
+                      if @current_player != nil and player.name == @current_player.name do
+                        ["font-bold"]
+                      else
+                        []
+                      end
+                  }>
+                    {player.name}
+                  </li>
+                <% end %>
+              <% end %>
+            </ul>
+          </div>
+        <% :complete -> %>
+          <div id="complete" class="text-center"></div>
       <% end %>
     </div>
   </div>
