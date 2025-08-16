@@ -1,3 +1,9 @@
+defmodule TeaktableWeb.CardHTML do
+  use TeaktableWeb, :html
+
+  embed_templates "card_html/*"
+end
+
 defmodule TeaktableWeb.CardController do
   use TeaktableWeb, :controller
 
@@ -6,7 +12,18 @@ defmodule TeaktableWeb.CardController do
 
   def index(conn, _params) do
     cards = Deck.list_cards()
-    render(conn, :index, cards: cards)
+
+    render(conn, :index,
+      cards: Enum.map(cards, fn card -> %{card | type: translate_type(card.type)} end)
+    )
+  end
+
+  defp translate_type(type) do
+    case type do
+      :monikers -> "Monikers"
+      :cahwhite -> "Answer"
+      :cahblack -> "Question"
+    end
   end
 
   def new(conn, _params) do
