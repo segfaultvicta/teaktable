@@ -75,11 +75,14 @@ defmodule TeaktableWeb.MonikersLive.Show do
         {:noreply, socket |> assign(:state, :drafting)}
 
       {:ok, game} ->
+        IO.puts("in initialize ")
+
         liveview_state =
           case game.state do
             :initial -> :drafting
             :playing -> :playing
             :waiting_on_pickup -> :playing
+            :countdown -> :playing
             :complete -> :complete
             _ -> :initialized
           end
@@ -144,17 +147,36 @@ defmodule TeaktableWeb.MonikersLive.Show do
             :initial -> :drafting
             :playing -> :playing
             :waiting_on_pickup -> :playing
+            :countdown -> :playing
+            :complete -> :complete
             _ -> :initialized
           end
 
-        {:noreply,
-         socket
-         |> assign(:nickname, nickname)
-         |> assign(:chosen_team, previous_team)
-         |> assign(:teams, game.teams)
-         |> assign(:state, liveview_state)
-         |> assign(:current_player, game.current_player)
-         |> put_flash(:info, "Reconnected!")}
+        if game.state == :countdown && game.current_player.name == nickname do
+          {current_card, cards_remaining, cards_in_discard} = Monikers.draw_from_pile()
+          :timer.send_after(500, :tick)
+
+          {:noreply,
+           socket
+           |> assign(:nickname, nickname)
+           |> assign(:chosen_team, previous_team)
+           |> assign(:teams, game.teams)
+           |> assign(:state, liveview_state)
+           |> assign(:current_player, game.current_player)
+           |> assign(:current_card, current_card)
+           |> assign(:cards_remaining, cards_remaining)
+           |> assign(:cards_in_discard, cards_in_discard)
+           |> put_flash(:info, "Reconnected!")}
+        else
+          {:noreply,
+           socket
+           |> assign(:nickname, nickname)
+           |> assign(:chosen_team, previous_team)
+           |> assign(:teams, game.teams)
+           |> assign(:state, liveview_state)
+           |> assign(:current_player, game.current_player)
+           |> put_flash(:info, "Reconnected!")}
+        end
 
       {:error, message} ->
         {:noreply,
@@ -274,6 +296,8 @@ defmodule TeaktableWeb.MonikersLive.Show do
 
     if current_card == nil do
       Monikers.handle_EOR()
+      # not sure what this actually SHOULD be but it SHOULD be SOMETHING
+      {:noreply, socket}
     else
       # round continues
       {:noreply,
@@ -282,6 +306,11 @@ defmodule TeaktableWeb.MonikersLive.Show do
        |> assign(:cards_remaining, cards_remaining)
        |> assign(:cards_in_discard, cards_in_discard)}
     end
+  end
+
+  def handle_event("obliterate", _params, socket) do
+    Monikers.obliterate()
+    {:noreply, socket |> assign(:state, :initialized)}
   end
 
   @impl true

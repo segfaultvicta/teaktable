@@ -185,13 +185,19 @@
             </h1>
           </div>
         <% :complete -> %>
-          <div id="complete" class="space-y-4">
-            The game is over!
+          <div id="complete" class="space-y-4 flex flex-col justify-center">
+            <p>The game is over!</p>
 
-            Final Scores:
-            <%= for {key, team} <- Enum.sort(@teams, &(&1.score > &2.score)) do %>
-              {team.name} : {team.score}
-            <% end %>
+            <p>
+              Final Scores:
+              <%= for {key, team} <- @teams do %>
+                {team.name} : {team.score}
+              <% end %>
+            </p>
+
+            <.button class="btn btn-danger" phx-click="obliterate">
+              CLICK HERE WHEN READY TO RESET GAME
+            </.button>
           </div>
       <% end %>
     </div>

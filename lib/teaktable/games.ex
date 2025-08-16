@@ -303,8 +303,18 @@ defmodule Teaktable.Games do
         else
           opposing_players = Enum.sort(game.teams[opposing_team].players)
 
+          player_index =
+            Enum.find_index(opposing_players, fn player -> player == game.last_player end)
+
+          # this is a kludge to get around a crash when the active player rejoins mid-countdown
+          # and should be fixed later to properly handle the error state
           next_player_index =
-            Enum.find_index(opposing_players, fn player -> player == game.last_player end) + 1
+            if player_index == nil do
+              IO.puts("ALERT ALERT THE KLUDGE IS HAPPENING THE KLUDGE IS HAPPENING")
+              0
+            else
+              player_index + 1
+            end
 
           new_player =
             if next_player_index >= length(opposing_players) do

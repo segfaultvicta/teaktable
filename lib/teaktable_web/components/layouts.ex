@@ -37,7 +37,9 @@ defmodule TeaktableWeb.Layouts do
     ~H"""
     <header class="navbar px-4 sm:px-6 lg:px-8">
       <div class="flex w-full justify-between">
-        <span class="text-md font-semibold">Super Padfriends Gametable</span>
+        <span class="text-md font-semibold">
+          Super Padfriends Gametable - <.link class="underline" href="/cards">Edit Decks</.link>
+        </span>
         <a href="/monikers" class="">
           <span class="text-md font-semibold">Monikers</span>
         </a>
