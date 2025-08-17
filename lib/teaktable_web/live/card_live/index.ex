@@ -23,9 +23,9 @@ defmodule TeaktableWeb.CardLive.Index do
         id="new_card_input"
         class="flex flex-col items-center justify-center text-lg mt-5 mb-16"
       >
-        <h3 class="text-2xl">New Card</h3>
         <%= case @live_action do %>
           <% :monikers -> %>
+            <h3 class="text-2xl">New Card</h3>
             <div>
               <.form for={@form} id="card-form" phx-submit="new_card" phx-change="validate">
                 <.input field={@form[:title]} type="text" label="Title" />
@@ -43,6 +43,7 @@ defmodule TeaktableWeb.CardLive.Index do
               </.form>
             </div>
           <% :cahwhite -> %>
+            <h3 class="text-2xl">New Card</h3>
             <div>
               <.form for={@form} id="card_form" phx-submit="new_card" phx-change="validate">
                 <.input field={@form[:description]} type="textarea" label="Text" />
@@ -56,6 +57,8 @@ defmodule TeaktableWeb.CardLive.Index do
                 <.button class="btn btn-primary">Add To Deck</.button>
               </.form>
             </div>
+          <% :index -> %>
+            <div></div>
         <% end %>
       </div>
 
