@@ -19,7 +19,16 @@ defmodule TeaktableWeb.Router do
 
     get "/", PageController, :home
 
-    resources "/cards", CardController
+    # get "/cards/monikers", CardController, :monikers
+    # get "/cards/answer", CardController, :cahwhite
+    # get "/cards/question", CardController, :cahblack
+    # resources "/cards", CardController
+    live "/cards", CardLive.Index, :index
+    live "/cards/monikers", CardLive.Index, :monikers
+    live "/cards/answer", CardLive.Index, :cahwhite
+    live "/cards/question", CardLive.Index, :cahblack
+    live "/cards/new", CardLive.Form, :new
+    live "/cards/:id/edit", CardLive.Form, :edit
     live "/cah", CAHLive.Show
     live "/monikers", MonikersLive.Show
   end

@@ -283,6 +283,7 @@ defmodule TeaktableWeb.CoreComponents do
   Renders a header with title.
   """
   slot :inner_block, required: true
+  slot :flex_middle
   slot :subtitle
   slot :actions
 
@@ -297,6 +298,7 @@ defmodule TeaktableWeb.CoreComponents do
           {render_slot(@subtitle)}
         </p>
       </div>
+      {render_slot(@flex_middle)}
       <div class="flex-none">{render_slot(@actions)}</div>
     </header>
     """

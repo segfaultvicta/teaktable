@@ -128,7 +128,7 @@
                 phx-blur="change_nickname"
                 phx-keydown="change_nickname"
                 phx-key="Enter"
-                autofocus
+                phx-mounted={JS.focus()}
               />
             <% else %>
               <li class={

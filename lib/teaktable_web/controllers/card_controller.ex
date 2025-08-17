@@ -10,20 +10,21 @@ defmodule TeaktableWeb.CardController do
   alias Teaktable.Deck
   alias Teaktable.Deck.Card
 
-  def index(conn, _params) do
-    cards = Deck.list_cards()
-
-    render(conn, :index,
-      cards: Enum.map(cards, fn card -> %{card | type: translate_type(card.type)} end)
-    )
+  def monikers(conn, _) do
+    render(conn, :index, cards: Deck.monikers())
   end
 
-  defp translate_type(type) do
-    case type do
-      :monikers -> "Monikers"
-      :cahwhite -> "Answer"
-      :cahblack -> "Question"
-    end
+  def cahwhite(conn, _) do
+    render(conn, :index, cards: Deck.cahwhite())
+  end
+
+  def cahblack(conn, _) do
+    render(conn, :index, cards: Deck.cahblack())
+  end
+
+  def index(conn, params) do
+    cards = Deck.list_cards()
+    render(conn, :index, cards)
   end
 
   def new(conn, _params) do

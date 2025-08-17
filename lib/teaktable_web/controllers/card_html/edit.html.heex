@@ -1,8 +1,0 @@
-<Layouts.app flash={@flash}>
-  <.header>
-    Edit Card {@card.id}
-    <:subtitle>Use this form to manage card records in your database.</:subtitle>
-  </.header>
-
-  <.card_form changeset={@changeset} action={~p"/cards/#{@card}"} return_to={~p"/cards"} />
-</Layouts.app>

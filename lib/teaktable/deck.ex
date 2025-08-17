@@ -26,16 +26,24 @@ defmodule Teaktable.Deck do
     |> Repo.all()
   end
 
-  def cahwhite do
-    from(c in Card, where: c.type == :cahwhite)
-    |> Repo.all()
-    |> Enum.map(& &1.description)
+  def cahwhite(full \\ false) do
+    if full do
+      from(c in Card, where: c.type == :cahwhite) |> Repo.all()
+    else
+      from(c in Card, where: c.type == :cahwhite)
+      |> Repo.all()
+      |> Enum.map(& &1.description)
+    end
   end
 
-  def cahblack do
-    from(c in Card, where: c.type == :cahblack)
-    |> Repo.all()
-    |> Enum.map(& &1.description)
+  def cahblack(full \\ false) do
+    if full do
+      from(c in Card, where: c.type == :cahblack) |> Repo.all()
+    else
+      from(c in Card, where: c.type == :cahblack)
+      |> Repo.all()
+      |> Enum.map(& &1.description)
+    end
   end
 
   @doc """
