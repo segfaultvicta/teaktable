@@ -51,8 +51,8 @@ defmodule TeaktableWeb.CardLive.Index do
               </.form>
             </div>
           <% :cahblack -> %>
+            <h3 class="text-2xl">New Card</h3>
             <div>
-              <h3 class="text-2xl">New Card</h3>
               <.form for={@form} id="card-form" phx-submit="new_card" phx-change="validate">
                 <.input field={@form[:description]} type="textarea" label="Text" />
                 <.button class="btn btn-primary">Add To Deck</.button>
