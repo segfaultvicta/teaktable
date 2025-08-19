@@ -43,9 +43,13 @@ defmodule TeaktableWeb.Layouts do
         <a href="/monikers" class="">
           <span class="text-md font-semibold">Monikers</span>
         </a>
-        <a href="/cah" class="">
-          <span class="text-md font-semibold">{Teaktable.Games.CAH.name()}</span>
-        </a>
+        <div style="width: 300px;">
+          <a href="/cah" class="">
+            <span class="text-md font-semibold">
+              {Teaktable.Games.CAH.name()}
+            </span>
+          </a>
+        </div>
       </div>
     </header>
 
